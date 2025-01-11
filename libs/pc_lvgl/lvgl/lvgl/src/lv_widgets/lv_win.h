@@ -19,19 +19,19 @@ extern "C" {
 
 /*Testing of dependencies*/
 #if LV_USE_BTN == 0
-#error "lv_win: lv_btn is required. Enable it in lv_conf.h (LV_USE_BTN  1) "
+#error "lv_win: lv_btn is required. Enable it in lv_conf.h (LV_USE_BTN 1)"
 #endif
 
 #if LV_USE_LABEL == 0
-#error "lv_win: lv_label is required. Enable it in lv_conf.h (LV_USE_LABEL  1) "
+#error "lv_win: lv_label is required. Enable it in lv_conf.h (LV_USE_LABEL 1)"
 #endif
 
 #if LV_USE_IMG == 0
-#error "lv_win: lv_img is required. Enable it in lv_conf.h (LV_USE_IMG  1) "
+#error "lv_win: lv_img is required. Enable it in lv_conf.h (LV_USE_IMG 1)"
 #endif
 
 #if LV_USE_PAGE == 0
-#error "lv_win: lv_page is required. Enable it in lv_conf.h (LV_USE_PAGE  1) "
+#error "lv_win: lv_page is required. Enable it in lv_conf.h (LV_USE_PAGE 1)"
 #endif
 
 #include "../lv_core/lv_obj.h"
@@ -57,6 +57,7 @@ typedef struct {
     lv_obj_t * header;                /*Pointer to the header container of the window*/
     char * title_txt;                 /*Pointer to the title label of the window*/
     lv_coord_t btn_w;                 /*Width of the control buttons*/
+    uint8_t title_txt_align;          /*Control the alignment of the header text*/
 } lv_win_ext_t;
 
 /** Window parts. */
@@ -92,12 +93,20 @@ void lv_win_clean(lv_obj_t * win);
  *=====================*/
 
 /**
- * Add control button to the header of the window
+ * Add control button on the right side of the window header
  * @param win pointer to a window object
  * @param img_src an image source ('lv_img_t' variable, path to file or a symbol)
  * @return pointer to the created button object
  */
-lv_obj_t * lv_win_add_btn(lv_obj_t * win, const void * img_src);
+lv_obj_t * lv_win_add_btn_right(lv_obj_t * win, const void * img_src);
+
+/**
+ * Add control button on the left side of the window header
+ * @param win pointer to a window object
+ * @param img_src an image source ('lv_img_t' variable, path to file or a symbol)
+ * @return pointer to the created button object
+ */
+lv_obj_t * lv_win_add_btn_left(lv_obj_t * win, const void * img_src);
 
 /*=====================
  * Setter functions
@@ -105,8 +114,8 @@ lv_obj_t * lv_win_add_btn(lv_obj_t * win, const void * img_src);
 
 /**
  * Can be assigned to a window control button to close the window
- * @param btn pointer to the control button on teh widows header
- * @param evet the event type
+ * @param btn pointer to the control button on the widows header
+ * @param event the event type
  */
 void lv_win_close_event_cb(lv_obj_t * btn, lv_event_t event);
 
@@ -149,9 +158,9 @@ void lv_win_set_layout(lv_obj_t * win, lv_layout_t layout);
 /**
  * Set the scroll bar mode of a window
  * @param win pointer to a window object
- * @param sb_mode the new scroll bar mode from  'lv_sb_mode_t'
+ * @param sb_mode the new scroll bar mode from  'lv_scrollbar_mode_t'
  */
-void lv_win_set_scrlbar_mode(lv_obj_t * win, lv_scrlbar_mode_t sb_mode);
+void lv_win_set_scrollbar_mode(lv_obj_t * win, lv_scrollbar_mode_t sb_mode);
 
 /**
  * Set focus animation duration on `lv_win_focus()`
@@ -166,6 +175,13 @@ void lv_win_set_anim_time(lv_obj_t * win, uint16_t anim_time);
  * @param en whether dragging is enabled
  */
 void lv_win_set_drag(lv_obj_t * win, bool en);
+
+/**
+ * Set alignment of title text in window header.
+ * @param win pointer to a window object
+ * @param alignment set the type of alignment with LV_TXT_FLAGS
+ */
+void lv_win_title_set_alignment(lv_obj_t * win, uint8_t alignment);
 
 /*=====================
  * Getter functions
@@ -192,7 +208,6 @@ lv_obj_t * lv_win_get_content(const lv_obj_t * win);
  */
 lv_coord_t lv_win_get_header_height(const lv_obj_t * win);
 
-
 /**
  * Get the width of the control buttons on the header
  * @param win pointer to a window object
@@ -201,7 +216,7 @@ lv_coord_t lv_win_get_header_height(const lv_obj_t * win);
 lv_coord_t lv_win_get_btn_width(lv_obj_t * win);
 
 /**
- * Get the pointer of a widow from one of  its control button.
+ * Get the pointer of a widow from one of its control button.
  * It is useful in the action of the control buttons where only button is known.
  * @param ctrl_btn pointer to a control button of a window
  * @return pointer to the window of 'ctrl_btn'
@@ -220,7 +235,7 @@ lv_layout_t lv_win_get_layout(lv_obj_t * win);
  * @param win pointer to a window object
  * @return the scroll bar mode of the window (from 'lv_sb_mode_t')
  */
-lv_scrlbar_mode_t lv_win_get_sb_mode(lv_obj_t * win);
+lv_scrollbar_mode_t lv_win_get_sb_mode(lv_obj_t * win);
 
 /**
  * Get focus animation duration
@@ -245,6 +260,12 @@ static inline bool lv_win_get_drag(const lv_obj_t * win)
 {
     return lv_obj_get_drag(win);
 }
+
+/**
+ * Get the current alignment of title text in window header.
+ * @param win pointer to a window object
+ */
+uint8_t lv_win_title_get_alignment(lv_obj_t * win);
 
 /*=====================
  * Other functions

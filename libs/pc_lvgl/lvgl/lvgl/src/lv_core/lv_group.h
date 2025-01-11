@@ -81,7 +81,7 @@ typedef uint8_t lv_group_refocus_policy_t;
  * Init. the group module
  * @remarks Internal function, do not call directly.
  */
-void lv_group_init(void);
+void _lv_group_init(void);
 
 /**
  * Create a new object group
@@ -155,7 +155,7 @@ lv_res_t lv_group_send_data(lv_group_t * group, uint32_t c);
 void lv_group_set_focus_cb(lv_group_t * group, lv_group_focus_cb_t focus_cb);
 
 /**
- * Set whether the next or previous item in a group is focused if the currently focussed obj is
+ * Set whether the next or previous item in a group is focused if the currently focused obj is
  * deleted.
  * @param group pointer to a group
  * @param new refocus policy enum

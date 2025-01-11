@@ -19,7 +19,7 @@ extern "C" {
 
 /*Testing of dependencies*/
 #if LV_USE_PAGE == 0
-#error "lv_roller: lv_page is required. Enable it in lv_conf.h (LV_USE_PAGE 1) "
+#error "lv_roller: lv_page is required. Enable it in lv_conf.h (LV_USE_PAGE 1)"
 #endif
 
 #include "../lv_core/lv_obj.h"
@@ -37,12 +37,10 @@ extern "C" {
 /** Roller mode. */
 enum {
     LV_ROLLER_MODE_NORMAL, /**< Normal mode (roller ends at the end of the options). */
-    LV_ROLLER_MODE_INIFINITE, /**< Infinite mode (roller can be scrolled forever). */
+    LV_ROLLER_MODE_INFINITE, /**< Infinite mode (roller can be scrolled forever). */
 };
 
 typedef uint8_t lv_roller_mode_t;
-
-
 
 /*Data of roller*/
 typedef struct {
@@ -99,7 +97,7 @@ void lv_roller_set_align(lv_obj_t * roller, lv_label_align_t align);
  * Set the selected option
  * @param roller pointer to a roller object
  * @param sel_opt id of the selected option (0 ... number of option - 1);
- * @param anim LV_ANOM_ON: set with animation; LV_ANIM_OFF set immediately
+ * @param anim LV_ANIM_ON: set with animation; LV_ANIM_OFF set immediately
  */
 void lv_roller_set_selected(lv_obj_t * roller, uint16_t sel_opt, lv_anim_enable_t anim);
 
@@ -150,7 +148,7 @@ uint16_t lv_roller_get_option_cnt(const lv_obj_t * roller);
  * @param buf pointer to an array to store the string
  * @param buf_size size of `buf` in bytes. 0: to ignore it.
  */
-void lv_roller_get_selected_str(const lv_obj_t * roller, char * buf, uint16_t buf_size);
+void lv_roller_get_selected_str(const lv_obj_t * roller, char * buf, uint32_t buf_size);
 
 /**
  * Get the align attribute. Default alignment after _create is LV_LABEL_ALIGN_CENTER
@@ -182,7 +180,6 @@ static inline uint16_t lv_roller_get_anim_time(const lv_obj_t * roller)
 {
     return lv_page_get_anim_time(roller);
 }
-
 
 /**********************
  *      MACROS

@@ -12,13 +12,14 @@
 
 /*Testing of dependencies*/
 #if LV_USE_SLIDER == 0
-    #error "lv_sw: lv_slider is required. Enable it in lv_conf.h (LV_USE_SLIDER  1) "
+    #error "lv_sw: lv_slider is required. Enable it in lv_conf.h (LV_USE_SLIDER 1)"
 #endif
 
-#include "../lv_core/lv_debug.h"
+#include "../lv_misc/lv_debug.h"
 #include "../lv_themes/lv_theme.h"
 #include "../lv_misc/lv_math.h"
 #include "../lv_core/lv_indev.h"
+#include "../lv_core/lv_disp.h"
 #include "lv_img.h"
 
 /*********************
@@ -35,7 +36,6 @@
  **********************/
 static lv_res_t lv_switch_signal(lv_obj_t * sw, lv_signal_t sign, void * param);
 static lv_design_res_t lv_switch_design(lv_obj_t * sw, const lv_area_t * clip_area, lv_design_mode_t mode);
-static lv_style_list_t * lv_switch_get_style(lv_obj_t * sw, uint8_t part);
 static lv_style_list_t * lv_switch_get_style(lv_obj_t * sw, uint8_t part);
 
 /**********************
@@ -89,7 +89,7 @@ lv_obj_t * lv_switch_create(lv_obj_t * par, const lv_obj_t * copy)
     if(copy == NULL) {
         lv_obj_set_click(sw, true);
         lv_obj_add_protect(sw, LV_PROTECT_PRESS_LOST);
-        lv_obj_set_size(sw, LV_DPX(70), LV_DPX(40));
+        lv_obj_set_size(sw, LV_DPX(60), LV_DPX(35));
         lv_bar_set_range(sw, 0, 1);
 
         lv_theme_apply(sw, LV_THEME_SWITCH);
@@ -99,7 +99,7 @@ lv_obj_t * lv_switch_create(lv_obj_t * par, const lv_obj_t * copy)
         lv_switch_ext_t * copy_ext = lv_obj_get_ext_attr(copy);
 
         lv_style_list_copy(&ext->style_knob, &copy_ext->style_knob);
-        lv_obj_refresh_style(sw, LV_STYLE_PROP_ALL);
+        lv_obj_refresh_style(sw, LV_OBJ_PART_ALL, LV_STYLE_PROP_ALL);
     }
 
     /*Refresh the style with new signal function*/
@@ -115,8 +115,8 @@ lv_obj_t * lv_switch_create(lv_obj_t * par, const lv_obj_t * copy)
 
 /**
  * Turn ON the switch
- * @param sw pointer to a switch objec
- * @param anim LV_ANOM_ON: set the value with an animation; LV_ANIM_OFF: change the value immediately
+ * @param sw pointer to a switch object
+ * @param anim LV_ANIM_ON: set the value with an animation; LV_ANIM_OFF: change the value immediately
  */
 void lv_switch_on(lv_obj_t * sw, lv_anim_enable_t anim)
 {
@@ -125,8 +125,8 @@ void lv_switch_on(lv_obj_t * sw, lv_anim_enable_t anim)
 #if LV_USE_ANIMATION == 0
     anim = LV_ANIM_OFF;
 #endif
-    lv_switch_ext_t * ext = lv_obj_get_ext_attr(sw);
-    ext->state = 1;
+    if(lv_bar_get_value(sw) == 1)
+        return;
     lv_bar_set_value(sw, 1, anim);
     lv_obj_add_state(sw, LV_STATE_CHECKED);
 }
@@ -143,8 +143,8 @@ void lv_switch_off(lv_obj_t * sw, lv_anim_enable_t anim)
 #if LV_USE_ANIMATION == 0
     anim = LV_ANIM_OFF;
 #endif
-    lv_switch_ext_t * ext = lv_obj_get_ext_attr(sw);
-    ext->state = 0;
+    if(lv_bar_get_value(sw) == 0)
+        return;
     lv_bar_set_value(sw, 0, anim);
     lv_obj_clear_state(sw, LV_STATE_CHECKED);
 }
@@ -254,7 +254,6 @@ static lv_design_res_t lv_switch_design(lv_obj_t * sw, const lv_area_t * clip_ar
     return LV_DESIGN_RES_OK;
 }
 
-
 /**
  * Signal function of the switch
  * @param sw pointer to a switch object
@@ -295,32 +294,36 @@ static lv_res_t lv_switch_signal(lv_obj_t * sw, lv_signal_t sign, void * param)
 
     }
     else if(sign == LV_SIGNAL_CONTROL) {
+#if LV_USE_GROUP
         char c = *((char *)param);
         if(c == LV_KEY_RIGHT || c == LV_KEY_UP) lv_switch_on(sw, LV_ANIM_ON);
         else if(c == LV_KEY_LEFT || c == LV_KEY_DOWN) lv_switch_off(sw, LV_ANIM_ON);
 
         res   = lv_event_send(sw, LV_EVENT_VALUE_CHANGED, NULL);
         if(res != LV_RES_OK) return res;
+#endif
     }
     else if(sign == LV_SIGNAL_REFR_EXT_DRAW_PAD) {
-        lv_style_int_t knob_left = lv_obj_get_style_pad_left(sw,   LV_SLIDER_PART_KNOB);
-        lv_style_int_t knob_right = lv_obj_get_style_pad_right(sw,  LV_SLIDER_PART_KNOB);
-        lv_style_int_t knob_top = lv_obj_get_style_pad_top(sw,    LV_SLIDER_PART_KNOB);
-        lv_style_int_t knob_bottom = lv_obj_get_style_pad_bottom(sw, LV_SLIDER_PART_KNOB);
+        lv_style_int_t knob_left = lv_obj_get_style_pad_left(sw,   LV_SWITCH_PART_KNOB);
+        lv_style_int_t knob_right = lv_obj_get_style_pad_right(sw,  LV_SWITCH_PART_KNOB);
+        lv_style_int_t knob_top = lv_obj_get_style_pad_top(sw,    LV_SWITCH_PART_KNOB);
+        lv_style_int_t knob_bottom = lv_obj_get_style_pad_bottom(sw, LV_SWITCH_PART_KNOB);
 
         /* The smaller size is the knob diameter*/
         lv_coord_t knob_size = LV_MATH_MIN(lv_obj_get_width(sw), lv_obj_get_height(sw)) >> 1;
         knob_size += LV_MATH_MAX(LV_MATH_MAX(knob_left, knob_right), LV_MATH_MAX(knob_bottom, knob_top));
         knob_size += 2;         /*For rounding error*/
 
-        knob_size += lv_obj_get_draw_rect_ext_pad_size(sw, LV_SLIDER_PART_KNOB);
+        knob_size += lv_obj_get_draw_rect_ext_pad_size(sw, LV_SWITCH_PART_KNOB);
 
         /*Indic. size is handled by bar*/
         sw->ext_draw_pad = LV_MATH_MAX(sw->ext_draw_pad, knob_size);
     }
     else if(sign == LV_SIGNAL_GET_EDITABLE) {
+#if LV_USE_GROUP
         bool * editable = (bool *)param;
         *editable       = false; /*The ancestor slider is editable the switch is not*/
+#endif
     }
 
     return res;

@@ -34,6 +34,13 @@ typedef struct {
 /**********************
  *  STATIC PROTOTYPES
  **********************/
+
+static uint32_t lv_bidi_get_next_paragraph(const char * txt);
+static lv_bidi_dir_t lv_bidi_get_letter_dir(uint32_t letter);
+static bool lv_bidi_letter_is_weak(uint32_t letter);
+static bool lv_bidi_letter_is_rtl(uint32_t letter);
+static bool lv_bidi_letter_is_neutral(uint32_t letter);
+
 static lv_bidi_dir_t get_next_run(const char * txt, lv_bidi_dir_t base_dir, uint32_t max_len, uint32_t * len,
                                   uint16_t  * pos_conv_len);
 static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * pos_conv_out, uint16_t pos_conv_rd_base,
@@ -67,9 +74,9 @@ static uint8_t br_stack_p;
  * @param str_out store the result here. Has the be `strlen(str_in)` length
  * @param base_dir `LV_BIDI_DIR_LTR` or `LV_BIDI_DIR_RTL`
  */
-void lv_bidi_process(const char * str_in, char * str_out, lv_bidi_dir_t base_dir)
+void _lv_bidi_process(const char * str_in, char * str_out, lv_bidi_dir_t base_dir)
 {
-    if(base_dir == LV_BIDI_DIR_AUTO) base_dir = lv_bidi_detect_base_dir(str_in);
+    if(base_dir == LV_BIDI_DIR_AUTO) base_dir = _lv_bidi_detect_base_dir(str_in);
 
     uint32_t par_start = 0;
     uint32_t par_len;
@@ -81,7 +88,7 @@ void lv_bidi_process(const char * str_in, char * str_out, lv_bidi_dir_t base_dir
 
     while(str_in[par_start] != '\0') {
         par_len = lv_bidi_get_next_paragraph(&str_in[par_start]);
-        lv_bidi_process_paragraph(&str_in[par_start], &str_out[par_start], par_len, base_dir, NULL, 0);
+        _lv_bidi_process_paragraph(&str_in[par_start], &str_out[par_start], par_len, base_dir, NULL, 0);
         par_start += par_len;
 
         while(str_in[par_start] == '\n' || str_in[par_start] == '\r') {
@@ -98,12 +105,12 @@ void lv_bidi_process(const char * str_in, char * str_out, lv_bidi_dir_t base_dir
  * @param txt the text to process
  * @return `LV_BIDI_DIR_LTR` or `LV_BIDI_DIR_RTL`
  */
-lv_bidi_dir_t lv_bidi_detect_base_dir(const char * txt)
+lv_bidi_dir_t _lv_bidi_detect_base_dir(const char * txt)
 {
     uint32_t i = 0;
     uint32_t letter;
     while(txt[i] != '\0') {
-        letter = lv_txt_encoded_next(txt, &i);
+        letter = _lv_txt_encoded_next(txt, &i);
 
         lv_bidi_dir_t dir;
         dir = lv_bidi_get_letter_dir(letter);
@@ -114,71 +121,6 @@ lv_bidi_dir_t lv_bidi_detect_base_dir(const char * txt)
     if(LV_BIDI_BASE_DIR_DEF == LV_BIDI_DIR_AUTO) return LV_BIDI_DIR_LTR;
     else return LV_BIDI_BASE_DIR_DEF;
 }
-/**
- * Get the direction of a character
- * @param letter an Unicode character
- * @return `LV_BIDI_DIR_RTL/LTR/WEAK/NEUTRAL`
- */
-lv_bidi_dir_t lv_bidi_get_letter_dir(uint32_t letter)
-{
-    if(lv_bidi_letter_is_rtl(letter)) return LV_BIDI_DIR_RTL;
-    if(lv_bidi_letter_is_neutral(letter)) return LV_BIDI_DIR_NEUTRAL;
-    if(lv_bidi_letter_is_weak(letter)) return LV_BIDI_DIR_WEAK;
-
-    return LV_BIDI_DIR_LTR;
-}
-/**
- * Tell whether a character is weak or not
- * @param letter an Unicode character
- * @return true/false
- */
-bool lv_bidi_letter_is_weak(uint32_t letter)
-{
-    uint32_t i = 0;
-    static const char weaks[] = "0123456789";
-
-    do {
-        uint32_t x = lv_txt_encoded_next(weaks, &i);
-        if(letter == x) {
-            return true;
-        }
-    } while(weaks[i] != '\0');
-
-    return false;
-}
-/**
- * Tell whether a character is RTL or not
- * @param letter an Unicode character
- * @return true/false
- */
-bool lv_bidi_letter_is_rtl(uint32_t letter)
-{
-    if(letter >= 0x5d0 && letter <= 0x5ea) return true;
-    if(letter == 0x202E) return true;               /*Unicode of LV_BIDI_RLO*/
-
-    /* Check for Persian and Arabic characters [https://en.wikipedia.org/wiki/Arabic_script_in_Unicode]*/
-    if(letter >= 0x600 && letter <= 0x6FF) return true;
-    if(letter >= 0xFB50 && letter <= 0xFDFF) return true;
-    if(letter >= 0xFE70 && letter <= 0xFEFF) return true;
-
-    return false;
-}
-
-/**
- * Tell whether a character is neutral or not
- * @param letter an Unicode character
- * @return true/false
- */
-bool lv_bidi_letter_is_neutral(uint32_t letter)
-{
-    uint16_t i;
-    static const char neutrals[] = " \t\n\r.,:;'\"`!?%/\\-=()[]{}<>@#&$|";
-    for(i = 0; neutrals[i] != '\0'; i++) {
-        if(letter == (uint32_t)neutrals[i]) return true;
-    }
-
-    return false;
-}
 
 /**
  * Get the logical position of a character in a line
@@ -188,32 +130,32 @@ bool lv_bidi_letter_is_neutral(uint32_t letter)
  * Can be `NULL` is unused
  * @param len length of the line in character count
  * @param base_dir base direction of the text: `LV_BIDI_DIR_LTR` or `LV_BIDI_DIR_RTL`
- * @param vicual_pos the visual character position which logical position should be get
- * @param is_rtl tell the the char at `viasual_pos` is RTL or LTR context
+ * @param visual_pos the visual character position which logical position should be get
+ * @param is_rtl tell the char at `visual_pos` is RTL or LTR context
  * @return the logical character position
  */
-uint16_t lv_bidi_get_logical_pos(const char * str_in, char ** bidi_txt, uint32_t len, lv_bidi_dir_t base_dir,
-                                 uint32_t visual_pos, bool * is_rtl)
+uint16_t _lv_bidi_get_logical_pos(const char * str_in, char ** bidi_txt, uint32_t len, lv_bidi_dir_t base_dir,
+                                  uint32_t visual_pos, bool * is_rtl)
 {
     uint32_t pos_conv_len = get_txt_len(str_in, len);
-    char * buf = lv_mem_buf_get(len + 1);
+    char * buf = _lv_mem_buf_get(len + 1);
     if(buf == NULL) return (uint16_t) -1;
 
-    uint16_t * pos_conv_buf = lv_mem_buf_get(pos_conv_len * sizeof(uint16_t));
+    uint16_t * pos_conv_buf = _lv_mem_buf_get(pos_conv_len * sizeof(uint16_t));
     if(pos_conv_buf == NULL) {
-        lv_mem_buf_release(buf);
+        _lv_mem_buf_release(buf);
         return (uint16_t) -1;
     }
 
     if(bidi_txt) *bidi_txt = buf;
 
-    lv_bidi_process_paragraph(str_in, bidi_txt ? *bidi_txt : NULL, len, base_dir, pos_conv_buf, pos_conv_len);
+    _lv_bidi_process_paragraph(str_in, bidi_txt ? *bidi_txt : NULL, len, base_dir, pos_conv_buf, pos_conv_len);
 
     if(is_rtl) *is_rtl = IS_RTL_POS(pos_conv_buf[visual_pos]);
 
-    if(bidi_txt == NULL) lv_mem_buf_release(buf);
+    if(bidi_txt == NULL) _lv_mem_buf_release(buf);
     uint16_t res = GET_POS(pos_conv_buf[visual_pos]);
-    lv_mem_buf_release(pos_conv_buf);
+    _lv_mem_buf_release(pos_conv_buf);
     return res;
 }
 
@@ -226,38 +168,38 @@ uint16_t lv_bidi_get_logical_pos(const char * str_in, char ** bidi_txt, uint32_t
  * @param len length of the line in character count
  * @param base_dir base direction of the text: `LV_BIDI_DIR_LTR` or `LV_BIDI_DIR_RTL`
  * @param logical_pos the logical character position which visual position should be get
- * @param is_rtl tell the the char at `logical_pos` is RTL or LTR context
+ * @param is_rtl tell the char at `logical_pos` is RTL or LTR context
  * @return the visual character position
  */
-uint16_t lv_bidi_get_visual_pos(const char * str_in, char ** bidi_txt, uint16_t len, lv_bidi_dir_t base_dir,
-                                uint32_t logical_pos, bool * is_rtl)
+uint16_t _lv_bidi_get_visual_pos(const char * str_in, char ** bidi_txt, uint16_t len, lv_bidi_dir_t base_dir,
+                                 uint32_t logical_pos, bool * is_rtl)
 {
     uint32_t pos_conv_len = get_txt_len(str_in, len);
-    char * buf = lv_mem_buf_get(len + 1);
+    char * buf = _lv_mem_buf_get(len + 1);
     if(buf == NULL) return (uint16_t) -1;
 
-    uint16_t * pos_conv_buf = lv_mem_buf_get(pos_conv_len * sizeof(uint16_t));
+    uint16_t * pos_conv_buf = _lv_mem_buf_get(pos_conv_len * sizeof(uint16_t));
     if(pos_conv_buf == NULL) {
-        lv_mem_buf_release(buf);
+        _lv_mem_buf_release(buf);
         return (uint16_t) -1;
     }
 
     if(bidi_txt) *bidi_txt = buf;
 
-    lv_bidi_process_paragraph(str_in, bidi_txt ? *bidi_txt : NULL, len, base_dir, pos_conv_buf, pos_conv_len);
+    _lv_bidi_process_paragraph(str_in, bidi_txt ? *bidi_txt : NULL, len, base_dir, pos_conv_buf, pos_conv_len);
 
     for(uint16_t i = 0; i < pos_conv_len; i++) {
         if(GET_POS(pos_conv_buf[i]) == logical_pos) {
 
             if(is_rtl) *is_rtl = IS_RTL_POS(pos_conv_buf[i]);
-            lv_mem_buf_release(pos_conv_buf);
+            _lv_mem_buf_release(pos_conv_buf);
 
-            if(bidi_txt == NULL) lv_mem_buf_release(buf);
+            if(bidi_txt == NULL) _lv_mem_buf_release(buf);
             return i;
         }
     }
-    lv_mem_buf_release(pos_conv_buf);
-    if(bidi_txt == NULL) lv_mem_buf_release(buf);
+    _lv_mem_buf_release(pos_conv_buf);
+    if(bidi_txt == NULL) _lv_mem_buf_release(buf);
     return (uint16_t) -1;
 }
 
@@ -265,14 +207,14 @@ uint16_t lv_bidi_get_visual_pos(const char * str_in, char ** bidi_txt, uint16_t 
  * Bidi process a paragraph of text
  * @param str_in the string to process
  * @param str_out store the result here
- * @param len length of teh text
+ * @param len length of the text
  * @param base_dir base dir of the text
  * @param pos_conv_out an `uint16_t` array to store the related logical position of the character.
  * Can be `NULL` is unused
  * @param pos_conv_len length of `pos_conv_out` in element count
  */
-void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len, lv_bidi_dir_t base_dir,
-                               uint16_t * pos_conv_out, uint16_t pos_conv_len)
+void _lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len, lv_bidi_dir_t base_dir,
+                                uint16_t * pos_conv_out, uint16_t pos_conv_len)
 {
     uint32_t run_len = 0;
     lv_bidi_dir_t run_dir;
@@ -282,7 +224,7 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
     uint16_t pos_conv_rd = 0;
     uint16_t pos_conv_wr;
 
-    if(base_dir == LV_BIDI_DIR_AUTO) base_dir = lv_bidi_detect_base_dir(str_in);
+    if(base_dir == LV_BIDI_DIR_AUTO) base_dir = _lv_bidi_detect_base_dir(str_in);
     if(base_dir == LV_BIDI_DIR_RTL) {
         wr = len;
         pos_conv_wr = pos_conv_len;
@@ -301,7 +243,7 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
 
     /*Process neutral chars in the beginning*/
     while(rd < len) {
-        uint32_t letter = lv_txt_encoded_next(str_in, &rd);
+        uint32_t letter = _lv_txt_encoded_next(str_in, &rd);
         pos_conv_rd++;
         dir = lv_bidi_get_letter_dir(letter);
         if(dir == LV_BIDI_DIR_NEUTRAL)  dir = bracket_process(str_in, rd, len, letter, base_dir);
@@ -309,14 +251,14 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
     }
 
     if(rd && str_in[rd] != '\0') {
-        lv_txt_encoded_prev(str_in, &rd);
+        _lv_txt_encoded_prev(str_in, &rd);
         pos_conv_rd--;
     }
 
     if(rd) {
         if(base_dir == LV_BIDI_DIR_LTR) {
             if(str_out) {
-                lv_memcpy(&str_out[wr], str_in, rd);
+                _lv_memcpy(&str_out[wr], str_in, rd);
                 wr += rd;
             }
             if(pos_conv_out) {
@@ -339,7 +281,7 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
 
         if(base_dir == LV_BIDI_DIR_LTR) {
             if(run_dir == LV_BIDI_DIR_LTR) {
-                if(str_out) lv_memcpy(&str_out[wr], &str_in[rd], run_len);
+                if(str_out) _lv_memcpy(&str_out[wr], &str_in[rd], run_len);
                 if(pos_conv_out) fill_pos_conv(&pos_conv_out[pos_conv_wr], pos_conv_run_len, pos_conv_rd);
             }
             else rtl_reverse(str_out ? &str_out[wr] : NULL, &str_in[rd], run_len, pos_conv_out ? &pos_conv_out[pos_conv_wr] : NULL,
@@ -351,7 +293,7 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
             wr -= run_len;
             pos_conv_wr -= pos_conv_run_len;
             if(run_dir == LV_BIDI_DIR_LTR) {
-                if(str_out) lv_memcpy(&str_out[wr], &str_in[rd], run_len);
+                if(str_out) _lv_memcpy(&str_out[wr], &str_in[rd], run_len);
                 if(pos_conv_out) fill_pos_conv(&pos_conv_out[pos_conv_wr], pos_conv_run_len, pos_conv_rd);
             }
             else rtl_reverse(str_out ? &str_out[wr] : NULL, &str_in[rd], run_len, pos_conv_out ? &pos_conv_out[pos_conv_wr] : NULL,
@@ -363,27 +305,93 @@ void lv_bidi_process_paragraph(const char * str_in, char * str_out, uint32_t len
     }
 }
 
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
+
 /**
  * Get the next paragraph from a text
  * @param txt the text to process
  * @return the length of the current paragraph in byte count
  */
-uint32_t lv_bidi_get_next_paragraph(const char * txt)
+static uint32_t lv_bidi_get_next_paragraph(const char * txt)
 {
     uint32_t i = 0;
 
-    lv_txt_encoded_next(txt, &i);
+    _lv_txt_encoded_next(txt, &i);
 
     while(txt[i] != '\0' && txt[i] != '\n' && txt[i] != '\r') {
-        lv_txt_encoded_next(txt, &i);
+        _lv_txt_encoded_next(txt, &i);
     }
 
     return i;
 }
 
-/**********************
- *   STATIC FUNCTIONS
- **********************/
+/**
+ * Get the direction of a character
+ * @param letter an Unicode character
+ * @return `LV_BIDI_DIR_RTL/LTR/WEAK/NEUTRAL`
+ */
+static lv_bidi_dir_t lv_bidi_get_letter_dir(uint32_t letter)
+{
+    if(lv_bidi_letter_is_rtl(letter)) return LV_BIDI_DIR_RTL;
+    if(lv_bidi_letter_is_neutral(letter)) return LV_BIDI_DIR_NEUTRAL;
+    if(lv_bidi_letter_is_weak(letter)) return LV_BIDI_DIR_WEAK;
+
+    return LV_BIDI_DIR_LTR;
+}
+/**
+ * Tell whether a character is weak or not
+ * @param letter an Unicode character
+ * @return true/false
+ */
+static bool lv_bidi_letter_is_weak(uint32_t letter)
+{
+    uint32_t i = 0;
+    static const char weaks[] = "0123456789";
+
+    do {
+        uint32_t x = _lv_txt_encoded_next(weaks, &i);
+        if(letter == x) {
+            return true;
+        }
+    } while(weaks[i] != '\0');
+
+    return false;
+}
+/**
+ * Tell whether a character is RTL or not
+ * @param letter an Unicode character
+ * @return true/false
+ */
+static bool lv_bidi_letter_is_rtl(uint32_t letter)
+{
+    if(letter >= 0x5d0 && letter <= 0x5ea) return true;
+    if(letter == 0x202E) return true;               /*Unicode of LV_BIDI_RLO*/
+
+    /* Check for Persian and Arabic characters [https://en.wikipedia.org/wiki/Arabic_script_in_Unicode]*/
+    if(letter >= 0x600 && letter <= 0x6FF) return true;
+    if(letter >= 0xFB50 && letter <= 0xFDFF) return true;
+    if(letter >= 0xFE70 && letter <= 0xFEFF) return true;
+
+    return false;
+}
+
+/**
+ * Tell whether a character is neutral or not
+ * @param letter an Unicode character
+ * @return true/false
+ */
+static bool lv_bidi_letter_is_neutral(uint32_t letter)
+{
+    uint16_t i;
+    static const char neutrals[] = " \t\n\r.,:;'\"`!?%/\\-=()[]{}<>@#&$|";
+    for(i = 0; neutrals[i] != '\0'; i++) {
+        if(letter == (uint32_t)neutrals[i]) return true;
+    }
+
+    return false;
+}
 
 static uint32_t get_txt_len(const char * txt, uint32_t max_len)
 {
@@ -391,7 +399,7 @@ static uint32_t get_txt_len(const char * txt, uint32_t max_len)
     uint32_t i   = 0;
 
     while(i < max_len && txt[i] != '\0') {
-        lv_txt_encoded_next(txt, &i);
+        _lv_txt_encoded_next(txt, &i);
         len++;
     }
 
@@ -415,13 +423,13 @@ static lv_bidi_dir_t get_next_run(const char * txt, lv_bidi_dir_t base_dir, uint
 
     uint16_t pos_conv_i = 0;
 
-    letter = lv_txt_encoded_next(txt, NULL);
+    letter = _lv_txt_encoded_next(txt, NULL);
     lv_bidi_dir_t dir = lv_bidi_get_letter_dir(letter);
     if(dir == LV_BIDI_DIR_NEUTRAL)  dir = bracket_process(txt, 0, max_len, letter, base_dir);
 
     /*Find the first strong char. Skip the neutrals*/
     while(dir == LV_BIDI_DIR_NEUTRAL || dir == LV_BIDI_DIR_WEAK) {
-        letter = lv_txt_encoded_next(txt, &i);
+        letter = _lv_txt_encoded_next(txt, &i);
         pos_conv_i++;
         dir = lv_bidi_get_letter_dir(letter);
         if(dir == LV_BIDI_DIR_NEUTRAL)  dir = bracket_process(txt, i, max_len, letter, base_dir);
@@ -443,7 +451,7 @@ static lv_bidi_dir_t get_next_run(const char * txt, lv_bidi_dir_t base_dir, uint
     /*Find the next char which has different direction*/
     lv_bidi_dir_t next_dir = base_dir;
     while(i_prev < max_len && txt[i] != '\0' && txt[i] != '\n' && txt[i] != '\r') {
-        letter = lv_txt_encoded_next(txt, &i);
+        letter = _lv_txt_encoded_next(txt, &i);
         pos_conv_i++;
         next_dir  = lv_bidi_get_letter_dir(letter);
         if(next_dir == LV_BIDI_DIR_NEUTRAL)  next_dir = bracket_process(txt, i, max_len, letter, base_dir);
@@ -498,7 +506,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
     uint16_t pos_conv_wr = 0;
 
     while(i) {
-        uint32_t letter = lv_txt_encoded_prev(src, &i);
+        uint32_t letter = _lv_txt_encoded_prev(src, &i);
         uint16_t pos_conv_letter = --pos_conv_i;
 
         /*Keep weak letters (numbers) as LTR*/
@@ -508,7 +516,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
             uint16_t pos_conv_last_weak = pos_conv_i;
             uint16_t pos_conv_first_weak = pos_conv_i;
             while(i) {
-                letter = lv_txt_encoded_prev(src, &i);
+                letter = _lv_txt_encoded_prev(src, &i);
                 pos_conv_letter = --pos_conv_i;
 
                 /*No need to call `char_change_to_pair` because there not such chars here*/
@@ -516,7 +524,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
                 /*Finish on non-weak char */
                 /*but treat number and currency related chars as weak*/
                 if(lv_bidi_letter_is_weak(letter) == false && letter != '.' && letter != ',' && letter != '$' && letter != '%') {
-                    lv_txt_encoded_next(src, &i);   /*Rewind one letter*/
+                    _lv_txt_encoded_next(src, &i);   /*Rewind one letter*/
                     pos_conv_i++;
                     first_weak = i;
                     pos_conv_first_weak = pos_conv_i;
@@ -528,7 +536,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
                 pos_conv_first_weak = 0;
             }
 
-            if(dest) lv_memcpy(&dest[wr], &src[first_weak], last_weak - first_weak + 1);
+            if(dest) _lv_memcpy(&dest[wr], &src[first_weak], last_weak - first_weak + 1);
             if(pos_conv_out) fill_pos_conv(&pos_conv_out[pos_conv_wr], pos_conv_last_weak - pos_conv_first_weak + 1,
                                                pos_conv_rd_base + pos_conv_first_weak);
             wr += last_weak - first_weak + 1;
@@ -537,7 +545,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
 
         /*Simply store in reversed order*/
         else {
-            uint32_t letter_size = lv_txt_encoded_size((const char *)&src[i]);
+            uint32_t letter_size = _lv_txt_encoded_size((const char *)&src[i]);
             /*Swap arithmetical symbols*/
             if(letter_size == 1) {
                 uint32_t new_letter = letter = char_change_to_pair(letter);
@@ -548,7 +556,7 @@ static void rtl_reverse(char * dest, const char * src, uint32_t len, uint16_t * 
             }
             /*Just store the letter*/
             else {
-                if(dest) lv_memcpy(&dest[wr], &src[i], letter_size);
+                if(dest) _lv_memcpy(&dest[wr], &src[i], letter_size);
                 if(pos_conv_out) pos_conv_out[pos_conv_wr] = SET_RTL_POS(pos_conv_rd_base + pos_conv_i, true);
                 wr += letter_size;
                 pos_conv_wr++;
@@ -585,7 +593,7 @@ static lv_bidi_dir_t bracket_process(const char * txt, uint32_t next_pos, uint32
              * If a char with base dir. direction is found then the brackets will have `base_dir` direction*/
             uint32_t txt_i = next_pos;
             while(txt_i < len) {
-                uint32_t letter_next = lv_txt_encoded_next(txt, &txt_i);
+                uint32_t letter_next = _lv_txt_encoded_next(txt, &txt_i);
                 if(letter_next == bracket_right[i]) {
                     /*Closing bracket found*/
                     break;
@@ -607,16 +615,15 @@ static lv_bidi_dir_t bracket_process(const char * txt, uint32_t next_pos, uint32
 
             /*If there were no matching strong chars in the brackets then check the previous chars*/
             txt_i = next_pos;
-            if(txt_i) lv_txt_encoded_prev(txt, &txt_i);
+            if(txt_i) _lv_txt_encoded_prev(txt, &txt_i);
             while(txt_i > 0) {
-                uint32_t letter_next = lv_txt_encoded_prev(txt, &txt_i);
+                uint32_t letter_next = _lv_txt_encoded_prev(txt, &txt_i);
                 lv_bidi_dir_t letter_dir = lv_bidi_get_letter_dir(letter_next);
                 if(letter_dir == LV_BIDI_DIR_LTR || letter_dir == LV_BIDI_DIR_RTL) {
                     bracket_dir = letter_dir;
                     break;
                 }
             }
-
 
             /*There where a previous strong char which can be used*/
             if(bracket_dir != LV_BIDI_DIR_NEUTRAL) break;
@@ -627,7 +634,6 @@ static lv_bidi_dir_t bracket_process(const char * txt, uint32_t next_pos, uint32
             break;
         }
     }
-
 
     /*The letter was an opening bracket*/
     if(bracket_left[i] != '\0') {
@@ -651,6 +657,5 @@ static lv_bidi_dir_t bracket_process(const char * txt, uint32_t next_pos, uint32
 
     return LV_BIDI_DIR_NEUTRAL;
 }
-
 
 #endif /*LV_USE_BIDI*/

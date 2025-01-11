@@ -7,7 +7,6 @@
  *      INCLUDES
  *********************/
 #include "lv_color.h"
-#include "lv_math.h"
 
 /*********************
  *      DEFINES
@@ -33,12 +32,49 @@
  *   GLOBAL FUNCTIONS
  **********************/
 
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-
 LV_ATTRIBUTE_FAST_MEM void lv_color_fill(lv_color_t * buf, lv_color_t color, uint32_t px_num)
 {
+#if LV_COLOR_DEPTH == 16
+    uintptr_t buf_int = (uintptr_t) buf;
+    if(buf_int & 0x3) {
+        *buf = color;
+        buf++;
+        px_num--;
+    }
+
+    uint32_t c32 = color.full + (color.full << 16);
+    uint32_t * buf32 = (uint32_t *)buf;
+
+    while(px_num > 16) {
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+        *buf32 = c32;
+        buf32++;
+
+        px_num -= 16;
+    }
+
+    buf = (lv_color_t *)buf32;
+
+    while(px_num) {
+        *buf = color;
+        buf++;
+        px_num --;
+    }
+#else
     while(px_num > 16) {
         *buf = color;
         buf++;
@@ -83,14 +119,13 @@ LV_ATTRIBUTE_FAST_MEM void lv_color_fill(lv_color_t * buf, lv_color_t color, uin
         buf++;
         px_num --;
     }
+#endif
 }
-
 
 lv_color_t lv_color_lighten(lv_color_t c, lv_opa_t lvl)
 {
     return lv_color_mix(LV_COLOR_WHITE, c, lvl);
 }
-
 
 lv_color_t lv_color_darken(lv_color_t c, lv_opa_t lvl)
 {
@@ -184,7 +219,7 @@ lv_color_hsv_t lv_color_rgb_to_hsv(uint8_t r8, uint8_t g8, uint8_t b8)
     hsv.v = (100 * rgbMax) >> 10;
 
     int32_t delta = rgbMax - rgbMin;
-    if(LV_MATH_ABS(delta) < 3) {
+    if(delta < 3) {
         hsv.h = 0;
         hsv.s = 0;
         return hsv;

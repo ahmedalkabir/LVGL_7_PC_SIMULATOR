@@ -10,7 +10,7 @@
 #include "lv_cpicker.h"
 #if LV_USE_CPICKER != 0
 
-#include "../lv_core/lv_debug.h"
+#include "../lv_misc/lv_debug.h"
 #include "../lv_draw/lv_draw_arc.h"
 #include "../lv_themes/lv_theme.h"
 #include "../lv_core/lv_indev.h"
@@ -47,6 +47,13 @@
 #endif
 
 #define TRI_OFFSET 2
+
+/* The OUTER_MASK_WIDTH define is required to assist with the placing of a mask over the outer ring of the widget as when the
+ * multicoloured radial lines are calculated for the outer ring of the widget their lengths are jittering because of the
+ * integer based arithmetic. From tests the maximum delta was found to be 2 so the current value is set to 3 to achieve
+ * appropriate masking.
+ */
+#define OUTER_MASK_WIDTH 3
 
 /**********************
  *      TYPEDEFS
@@ -144,7 +151,7 @@ lv_obj_t * lv_cpicker_create(lv_obj_t * par, const lv_obj_t * copy)
 
         lv_style_list_copy(&ext->knob.style_list, &copy_ext->knob.style_list);
         /*Refresh the style with new signal function*/
-        lv_obj_refresh_style(cpicker, LV_STYLE_PROP_ALL);
+        lv_obj_refresh_style(cpicker, LV_OBJ_PART_ALL, LV_STYLE_PROP_ALL);
     }
     refr_knob_pos(cpicker);
 
@@ -237,9 +244,7 @@ bool lv_cpicker_set_hsv(lv_obj_t * cpicker, lv_color_hsv_t hsv)
 
     refr_knob_pos(cpicker);
 
-    if(ext->type == LV_CPICKER_TYPE_DISC) {
-        lv_obj_invalidate(cpicker);
-    }
+    lv_obj_invalidate(cpicker);
 
     return true;
 }
@@ -429,7 +434,6 @@ bool lv_cpicker_get_knob_colored(lv_obj_t * cpicker)
  *   STATIC FUNCTIONS
  **********************/
 
-
 /**
  * Handle the drawing related tasks of the color_picker
  * @param cpicker pointer to an object
@@ -483,6 +487,17 @@ static void draw_disc_grad(lv_obj_t * cpicker, const lv_area_t * mask)
     uint16_t i;
     lv_coord_t cir_w = lv_obj_get_style_scale_width(cpicker, LV_CPICKER_PART_MAIN);
 
+    /* Mask outer ring of widget to tidy up ragged edges of lines while drawing outer ring */
+    lv_area_t mask_area_out;
+    lv_area_copy(&mask_area_out, &cpicker->coords);
+    mask_area_out.x1 += OUTER_MASK_WIDTH;
+    mask_area_out.x2 -= OUTER_MASK_WIDTH;
+    mask_area_out.y1 += OUTER_MASK_WIDTH;
+    mask_area_out.y2 -= OUTER_MASK_WIDTH;
+    lv_draw_mask_radius_param_t mask_out_param;
+    lv_draw_mask_radius_init(&mask_out_param, &mask_area_out, LV_RADIUS_CIRCLE, false);
+    int16_t mask_out_id = lv_draw_mask_add(&mask_out_param, 0);
+
     /* The inner line ends will be masked out.
      * So make lines a little bit longer because the masking makes a more even result */
     lv_coord_t cir_w_extra = cir_w + line_dsc.width;
@@ -491,14 +506,15 @@ static void draw_disc_grad(lv_obj_t * cpicker, const lv_area_t * mask)
         line_dsc.color = angle_to_mode_color(cpicker, i);
 
         lv_point_t p[2];
-        p[0].x = cx + (r * lv_trigo_sin(i) >> LV_TRIGO_SHIFT);
-        p[0].y = cy + (r * lv_trigo_sin(i + 90) >> LV_TRIGO_SHIFT);
-        p[1].x = cx + ((r - cir_w_extra) * lv_trigo_sin(i) >> LV_TRIGO_SHIFT);
-        p[1].y = cy + ((r - cir_w_extra) * lv_trigo_sin(i + 90) >> LV_TRIGO_SHIFT);
+        p[0].x = cx + (r * _lv_trigo_sin(i) >> LV_TRIGO_SHIFT);
+        p[0].y = cy + (r * _lv_trigo_sin(i + 90) >> LV_TRIGO_SHIFT);
+        p[1].x = cx + ((r - cir_w_extra) * _lv_trigo_sin(i) >> LV_TRIGO_SHIFT);
+        p[1].y = cy + ((r - cir_w_extra) * _lv_trigo_sin(i + 90) >> LV_TRIGO_SHIFT);
 
         lv_draw_line(&p[0], &p[1], mask, &line_dsc);
     }
-
+    /* Now remove mask to continue with inner part */
+    lv_draw_mask_remove_id(mask_out_id);
 
     /*Mask out the inner area*/
     lv_draw_rect_dsc_t bg_dsc;
@@ -562,6 +578,7 @@ static void draw_rect_grad(lv_obj_t * cpicker, const lv_area_t * mask)
     }
 
     lv_coord_t grad_w = lv_area_get_width(&grad_area);
+    if(grad_w < 1) return;
     uint16_t i_step = LV_MATH_MAX(LV_CPICKER_DEF_QF, 360 / grad_w);
     bg_dsc.radius = 0;
     bg_dsc.border_width = 0;
@@ -701,6 +718,7 @@ static lv_res_t lv_cpicker_signal(lv_obj_t * cpicker, lv_signal_t sign, void * p
         lv_obj_invalidate(cpicker);
     }
     else if(sign == LV_SIGNAL_CONTROL) {
+#if LV_USE_GROUP
         uint32_t c = *((uint32_t *)param); /*uint32_t because can be UTF-8*/
 
         if(c == LV_KEY_RIGHT || c == LV_KEY_UP) {
@@ -745,6 +763,7 @@ static lv_res_t lv_cpicker_signal(lv_obj_t * cpicker, lv_signal_t sign, void * p
                 if(res != LV_RES_OK) return res;
             }
         }
+#endif
     }
     else if(sign == LV_SIGNAL_PRESSED) {
         ext->last_change_time = lv_tick_get();
@@ -825,7 +844,7 @@ static lv_res_t lv_cpicker_signal(lv_obj_t * cpicker, lv_signal_t sign, void * p
             /*Set the angle only if pressed on the ring*/
             if(!on_ring) return res;
 
-            angle = lv_atan2(p.x, p.y) % 360;
+            angle = _lv_atan2(p.x, p.y) % 360;
         }
 
         lv_color_hsv_t hsv_cur;
@@ -855,7 +874,6 @@ static lv_res_t lv_cpicker_signal(lv_obj_t * cpicker, lv_signal_t sign, void * p
 
     return res;
 }
-
 
 /**
  * Get the style_list descriptor of a part of the object
@@ -894,9 +912,8 @@ static bool lv_cpicker_hit(lv_obj_t * cpicker, const lv_point_t * p)
     if(ext->type == LV_CPICKER_TYPE_RECT)
         return true;
 
-
     /*Valid clicks can be only in the circle*/
-    if(lv_area_is_point_on(&cpicker->coords, p, LV_RADIUS_CIRCLE)) return true;
+    if(_lv_area_is_point_on(&cpicker->coords, p, LV_RADIUS_CIRCLE)) return true;
     else return false;
 }
 
@@ -937,8 +954,8 @@ static void refr_knob_pos(lv_obj_t * cpicker)
         lv_style_int_t scale_w = lv_obj_get_style_scale_width(cpicker, LV_CPICKER_PART_MAIN);
         lv_coord_t r = (w - scale_w) / 2;
         uint16_t angle = get_angle(cpicker);
-        ext->knob.pos.x = (((int32_t)r * lv_trigo_sin(angle)) >> LV_TRIGO_SHIFT);
-        ext->knob.pos.y = (((int32_t)r * lv_trigo_sin(angle + 90)) >> LV_TRIGO_SHIFT);
+        ext->knob.pos.x = (((int32_t)r * _lv_trigo_sin(angle)) >> LV_TRIGO_SHIFT);
+        ext->knob.pos.y = (((int32_t)r * _lv_trigo_sin(angle + 90)) >> LV_TRIGO_SHIFT);
         ext->knob.pos.x = ext->knob.pos.x + w / 2;
         ext->knob.pos.y = ext->knob.pos.y + h / 2;
     }

@@ -50,7 +50,6 @@ typedef uint8_t lv_indev_type_t;
 enum { LV_INDEV_STATE_REL = 0, LV_INDEV_STATE_PR };
 typedef uint8_t lv_indev_state_t;
 
-
 enum {
     LV_DRAG_DIR_HOR = 0x1, /**< Object can be dragged horizontally. */
     LV_DRAG_DIR_VER = 0x2, /**< Object can be dragged vertically. */
@@ -77,7 +76,6 @@ typedef struct {
 
     lv_indev_state_t state; /**< LV_INDEV_STATE_REL or LV_INDEV_STATE_PR*/
 } lv_indev_data_t;
-
 
 /** Initialized by the user and registered by 'lv_indev_add()'*/
 typedef struct _lv_indev_drv_t {
@@ -137,7 +135,7 @@ typedef struct _lv_indev_proc_t {
             lv_point_t drag_sum; /*Count the dragged pixels to check LV_INDEV_DEF_DRAG_LIMIT*/
             lv_point_t drag_throw_vect;
             struct _lv_obj_t * act_obj;      /*The object being pressed*/
-            struct _lv_obj_t * last_obj;     /*The last obejct which was pressed (used by dragthrow and
+            struct _lv_obj_t * last_obj;     /*The last object which was pressed (used by drag_throw and
                                                 other post-release event)*/
             struct _lv_obj_t * last_pressed; /*The lastly pressed object*/
 
@@ -220,7 +218,7 @@ lv_indev_t * lv_indev_get_next(lv_indev_t * indev);
  * @param data input device will write its data here
  * @return false: no more data; true: there more data to read (buffered)
  */
-bool lv_indev_read(lv_indev_t * indev, lv_indev_data_t * data);
+bool _lv_indev_read(lv_indev_t * indev, lv_indev_data_t * data);
 
 /**********************
  *      MACROS

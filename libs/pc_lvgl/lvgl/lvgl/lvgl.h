@@ -10,6 +10,14 @@
 extern "C" {
 #endif
 
+/***************************
+ * CURRENT VERSION OF LVGL
+ ***************************/
+#define LVGL_VERSION_MAJOR 7
+#define LVGL_VERSION_MINOR 11
+#define LVGL_VERSION_PATCH 0
+#define LVGL_VERSION_INFO ""
+
 /*********************
  *      INCLUDES
  *********************/
@@ -27,14 +35,12 @@ extern "C" {
 
 #include "src/lv_core/lv_refr.h"
 #include "src/lv_core/lv_disp.h"
-#include "src/lv_core/lv_debug.h"
 
 #include "src/lv_themes/lv_theme.h"
 
 #include "src/lv_font/lv_font.h"
+#include "src/lv_font/lv_font_loader.h"
 #include "src/lv_font/lv_font_fmt_txt.h"
-#include "src/lv_misc/lv_bidi.h"
-#include "src/lv_misc/lv_txt_ap.h"
 #include "src/lv_misc/lv_printf.h"
 
 #include "src/lv_widgets/lv_btn.h"
@@ -78,11 +84,6 @@ extern "C" {
 /*********************
  *      DEFINES
  *********************/
-/*Current version of LittlevGL*/
-#define LVGL_VERSION_MAJOR   7
-#define LVGL_VERSION_MINOR   0
-#define LVGL_VERSION_PATCH   0
-#define LVGL_VERSION_INFO    "rc"
 
 /**********************
  *      TYPEDEFS
@@ -119,6 +120,29 @@ extern "C" {
  * */
 #define LV_VERSION_CHECK(x,y,z) (x == LVGL_VERSION_MAJOR && (y < LVGL_VERSION_MINOR || (y == LVGL_VERSION_MINOR && z <= LVGL_VERSION_PATCH)))
 
+/**
+ * Wrapper functions for VERSION macros
+ */
+
+static inline int lv_version_major(void)
+{
+    return LVGL_VERSION_MAJOR;
+}
+
+static inline int lv_version_minor(void)
+{
+    return LVGL_VERSION_MINOR;
+}
+
+static inline int lv_version_patch(void)
+{
+    return LVGL_VERSION_PATCH;
+}
+
+static inline const char *lv_version_info(void)
+{
+    return LVGL_VERSION_INFO;
+}
 
 #ifdef __cplusplus
 }

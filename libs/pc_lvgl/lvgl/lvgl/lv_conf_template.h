@@ -1,6 +1,6 @@
 /**
  * @file lv_conf.h
- *
+ * Configuration file for v7.11.0
  */
 
 /*
@@ -25,7 +25,7 @@
 
 /* Color depth:
  * - 1:  1 byte per pixel
- * - 8:  RGB233
+ * - 8:  RGB332
  * - 16: RGB565
  * - 32: ARGB8888
  */
@@ -42,9 +42,6 @@
 
 /*Images pixels with this color will not be drawn (with chroma keying)*/
 #define LV_COLOR_TRANSP    LV_COLOR_LIME         /*LV_COLOR_LIME: pure green*/
-
-/* Enable chroma keying for indexed images. */
-#define LV_INDEXED_CHROMA    1
 
 /* Enable anti-aliasing (lines, and radiuses will be smoothed) */
 #define LV_ANTIALIAS        1
@@ -72,6 +69,9 @@
 /* Type of coordinates. Should be `int16_t` (or `int32_t` for extreme cases) */
 typedef int16_t lv_coord_t;
 
+/* Maximum buffer size to allocate for rotation. Only used if software rotation is enabled. */
+#define LV_DISP_ROT_MAX_BUF  (10U * 1024U)
+
 /*=========================
    Memory manager settings
  *=========================*/
@@ -85,7 +85,7 @@ typedef int16_t lv_coord_t;
 /* Size of the memory used by `lv_mem_alloc` in bytes (>= 2kB)*/
 #  define LV_MEM_SIZE    (32U * 1024U)
 
-/* Complier prefix for a big array declaration */
+/* Compiler prefix for a big array declaration */
 #  define LV_MEM_ATTR
 
 /* Set an address for the memory pool instead of allocating it as an array.
@@ -99,6 +99,10 @@ typedef int16_t lv_coord_t;
 #  define LV_MEM_CUSTOM_ALLOC   malloc       /*Wrapper to malloc*/
 #  define LV_MEM_CUSTOM_FREE    free         /*Wrapper to free*/
 #endif     /*LV_MEM_CUSTOM*/
+
+/* Use the standard memcpy and memset instead of LVGL's own functions.
+ * The standard functions might or might not be faster depending on their implementation. */
+#define LV_MEMCPY_MEMSET_STD    0
 
 /* Garbage Collector settings
  * Used if lvgl is binded to higher level language and the memory is managed by that language */
@@ -123,16 +127,15 @@ typedef int16_t lv_coord_t;
 #define LV_INDEV_DEF_DRAG_LIMIT           10
 
 /* Drag throw slow-down in [%]. Greater value -> faster slow-down */
-#define LV_INDEV_DEF_DRAG_THROW           20
+#define LV_INDEV_DEF_DRAG_THROW           10
 
 /* Long press time in milliseconds.
- * Time to send `LV_EVENT_LONG_PRESSSED`) */
+ * Time to send `LV_EVENT_LONG_PRESSED`) */
 #define LV_INDEV_DEF_LONG_PRESS_TIME      400
 
 /* Repeated trigger period in long press [ms]
  * Time between `LV_EVENT_LONG_PRESSED_REPEAT */
 #define LV_INDEV_DEF_LONG_PRESS_REP_TIME  100
-
 
 /* Gesture threshold in pixels */
 #define LV_INDEV_DEF_GESTURE_LIMIT        50
@@ -153,7 +156,7 @@ typedef void * lv_anim_user_data_t;
 
 #endif
 
-/* 1: Enable shadow drawing*/
+/* 1: Enable shadow drawing on rectangles*/
 #define LV_USE_SHADOW           1
 #if LV_USE_SHADOW
 /* Allow buffering some shadow calculation
@@ -163,11 +166,23 @@ typedef void * lv_anim_user_data_t;
 #define LV_SHADOW_CACHE_SIZE    0
 #endif
 
+/*1: enable outline drawing on rectangles*/
+#define LV_USE_OUTLINE  1
+
+/*1: enable pattern drawing on rectangles*/
+#define LV_USE_PATTERN  1
+
+/*1: enable value string drawing on rectangles*/
+#define LV_USE_VALUE_STR    1
+
 /* 1: Use other blend modes than normal (`LV_BLEND_MODE_...`)*/
 #define LV_USE_BLEND_MODES      1
 
 /* 1: Use the `opa_scale` style property to set the opacity of an object and its children at once*/
 #define LV_USE_OPA_SCALE        1
+
+/* 1: Use image zoom and rotation*/
+#define LV_USE_IMG_TRANSFORM    1
 
 /* 1: Enable object groups (for keyboard/encoder navigation) */
 #define LV_USE_GROUP            1
@@ -176,8 +191,24 @@ typedef void * lv_group_user_data_t;
 #endif  /*LV_USE_GROUP*/
 
 /* 1: Enable GPU interface*/
-#define LV_USE_GPU              1
+#define LV_USE_GPU              1   /*Only enables `gpu_fill_cb` and `gpu_blend_cb` in the disp. drv- */
 #define LV_USE_GPU_STM32_DMA2D  0
+/*If enabling LV_USE_GPU_STM32_DMA2D, LV_GPU_DMA2D_CMSIS_INCLUDE must be defined to include path of CMSIS header of target processor
+e.g. "stm32f769xx.h" or "stm32f429xx.h" */
+#define LV_GPU_DMA2D_CMSIS_INCLUDE
+
+/*1: Use PXP for CPU off-load on NXP RTxxx platforms */
+#define LV_USE_GPU_NXP_PXP      0
+
+/*1: Add default bare metal and FreeRTOS interrupt handling routines for PXP (lv_gpu_nxp_pxp_osa.c)
+ *   and call lv_gpu_nxp_pxp_init() automatically during lv_init(). Note that symbol FSL_RTOS_FREE_RTOS
+ *   has to be defined in order to use FreeRTOS OSA, otherwise bare-metal implementation is selected.
+ *0: lv_gpu_nxp_pxp_init() has to be called manually before lv_init()
+ * */
+#define LV_USE_GPU_NXP_PXP_AUTO_INIT 0
+
+/*1: Use VG-Lite for CPU offload on NXP RTxxx platforms */
+#define LV_USE_GPU_NXP_VG_LITE   0
 
 /* 1: Enable file system (might be required for images */
 #define LV_USE_FILESYSTEM       1
@@ -191,6 +222,10 @@ typedef void * lv_fs_drv_user_data_t;
 
 /*1: Show CPU usage and FPS count in the right bottom corner*/
 #define LV_USE_PERF_MONITOR     0
+
+/*1: Use the functions and types from the older API if possible */
+#define LV_USE_API_EXTENSION_V6  1
+#define LV_USE_API_EXTENSION_V7  1
 
 /*========================
  * Image decoder and cache
@@ -207,7 +242,7 @@ typedef void * lv_fs_drv_user_data_t;
  * (I.e. no new image decoder is added)
  * With complex image decoders (e.g. PNG or JPG) caching can save the continuous open/decode of images.
  * However the opened images might consume additional RAM.
- * LV_IMG_CACHE_DEF_SIZE must be >= 1 */
+ * Set it to 0 to disable caching */
 #define LV_IMG_CACHE_DEF_SIZE       1
 
 /*Declare the type of the user data of image decoder (can be e.g. `void *`, `int`, `struct`)*/
@@ -216,6 +251,10 @@ typedef void * lv_img_decoder_user_data_t;
 /*=====================
  *  Compiler settings
  *====================*/
+
+/* For big endian systems set to 1 */
+#define LV_BIG_ENDIAN_SYSTEM    0
+
 /* Define a custom attribute to `lv_tick_inc` function */
 #define LV_ATTRIBUTE_TICK_INC
 
@@ -225,9 +264,14 @@ typedef void * lv_img_decoder_user_data_t;
 /* Define a custom attribute to `lv_disp_flush_ready` function */
 #define LV_ATTRIBUTE_FLUSH_READY
 
+/* Required alignment size for buffers */
+#define LV_ATTRIBUTE_MEM_ALIGN_SIZE
+
 /* With size optimization (-Os) the compiler might not align data to
- * 4 or 8 byte boundary. This alignment will be explicitly applied where needed.
- * E.g. __attribute__((aligned(4))) */
+ * 4 or 8 byte boundary. Some HW may need even 32 or 64 bytes.
+ * This alignment will be explicitly applied where needed.
+ * LV_ATTRIBUTE_MEM_ALIGN_SIZE should be used to specify required align size.
+ * E.g. __attribute__((aligned(LV_ATTRIBUTE_MEM_ALIGN_SIZE))) */
 #define LV_ATTRIBUTE_MEM_ALIGN
 
 /* Attribute to mark large constant arrays for example
@@ -246,6 +290,10 @@ typedef void * lv_img_decoder_user_data_t;
  */
 #define LV_EXPORT_CONST_INT(int_value) struct _silence_gcc_warning
 
+/* Prefix variables that are used in GPU accelerated operations, often these need to be
+ * placed in RAM sections that are DMA accessible */
+#define LV_ATTRIBUTE_DMA
+
 /*===================
  *  HAL settings
  *==================*/
@@ -254,8 +302,8 @@ typedef void * lv_img_decoder_user_data_t;
  * It removes the need to manually update the tick with `lv_tick_inc`) */
 #define LV_TICK_CUSTOM     0
 #if LV_TICK_CUSTOM == 1
-#define LV_TICK_CUSTOM_INCLUDE  "something.h"       /*Header for the sys time function*/
-#define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())     /*Expression evaluating to current systime in ms*/
+#define LV_TICK_CUSTOM_INCLUDE  "Arduino.h"         /*Header for the system time function*/
+#define LV_TICK_CUSTOM_SYS_TIME_EXPR (millis())     /*Expression evaluating to current system time in ms*/
 #endif   /*LV_TICK_CUSTOM*/
 
 typedef void * lv_disp_drv_user_data_t;             /*Type of user data in the display driver*/
@@ -290,7 +338,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  * If an invalid parameter is found an error log message is printed and
  * the MCU halts at the error. (`LV_USE_LOG` should be enabled)
  * If you are debugging the MCU you can pause
- * the debugger to see exactly where  the issue is.
+ * the debugger to see exactly where the issue is.
  *
  * The behavior of asserts can be overwritten by redefining them here.
  * E.g. #define LV_ASSERT_MEM(p)  <my_assert_code>
@@ -325,17 +373,19 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  *    FONT USAGE
  *===================*/
 
-/* The built-in fonts contains the ASCII range and some Symbols with  4 bit-per-pixel.
+/* The built-in fonts contains the ASCII range and some Symbols with 4 bit-per-pixel.
  * The symbols are available via `LV_SYMBOL_...` defines
- * More info about fonts: https://docs.littlevgl.com/#Fonts
- * To create a new font go to: https://littlevgl.com/ttf-font-to-c-array
+ * More info about fonts: https://docs.lvgl.io/v7/en/html/overview/font.html
+ * To create a new font go to: https://lvgl.com/ttf-font-to-c-array
  */
 
 /* Montserrat fonts with bpp = 4
  * https://fonts.google.com/specimen/Montserrat  */
+#define LV_FONT_MONTSERRAT_8     0
+#define LV_FONT_MONTSERRAT_10    0
 #define LV_FONT_MONTSERRAT_12    0
-#define LV_FONT_MONTSERRAT_14    0
-#define LV_FONT_MONTSERRAT_16    1
+#define LV_FONT_MONTSERRAT_14    1
+#define LV_FONT_MONTSERRAT_16    0
 #define LV_FONT_MONTSERRAT_18    0
 #define LV_FONT_MONTSERRAT_20    0
 #define LV_FONT_MONTSERRAT_22    0
@@ -362,6 +412,7 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
 /*Pixel perfect monospace font
  * http://pelulamu.net/unscii/ */
 #define LV_FONT_UNSCII_8     0
+#define LV_FONT_UNSCII_16     0
 
 /* Optionally declare your custom fonts here.
  * You can use these fonts as default font too
@@ -376,11 +427,20 @@ typedef void * lv_indev_drv_user_data_t;            /*Type of user data in the i
  * but with > 10,000 characters if you see issues probably you need to enable it.*/
 #define LV_FONT_FMT_TXT_LARGE   0
 
+/* Enables/disables support for compressed fonts. If it's disabled, compressed
+ * glyphs cannot be processed by the library and won't be rendered.
+ */
+#define LV_USE_FONT_COMPRESSED 1
+
+/* Enable subpixel rendering */
+#define LV_USE_FONT_SUBPX 1
+#if LV_USE_FONT_SUBPX
 /* Set the pixel order of the display.
  * Important only if "subpx fonts" are used.
  * With "normal" font it doesn't matter.
  */
 #define LV_FONT_SUBPX_BGR    0
+#endif
 
 /*Declare the type of the user data of fonts (can be e.g. `void *`, `int`, `struct`)*/
 typedef void * lv_font_user_data_t;
@@ -393,34 +453,37 @@ typedef void * lv_font_user_data_t;
 
 /* No theme, you can apply your styles as you need
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
- #define LV_USE_THEME_EMPTY       1
+#define LV_USE_THEME_EMPTY       1
 
 /*Simple to the create your theme based on it
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
- #define LV_USE_THEME_TEMPLATE    1
+#define LV_USE_THEME_TEMPLATE    1
 
 /* A fast and impressive theme.
  * Flags:
  * LV_THEME_MATERIAL_FLAG_LIGHT: light theme
- * LV_THEME_MATERIAL_FLAG_DARK: dark theme*/
- #define LV_USE_THEME_MATERIAL    1
+ * LV_THEME_MATERIAL_FLAG_DARK: dark theme
+ * LV_THEME_MATERIAL_FLAG_NO_TRANSITION: disable transitions (state change animations)
+ * LV_THEME_MATERIAL_FLAG_NO_FOCUS: disable indication of focused state)
+ * */
+#define LV_USE_THEME_MATERIAL    1
 
 /* Mono-color theme for monochrome displays.
  * If LV_THEME_DEFAULT_COLOR_PRIMARY is LV_COLOR_BLACK the
  * texts and borders will be black and the background will be
  * white. Else the colors are inverted.
  * No flags. Set LV_THEME_DEFAULT_FLAG 0 */
- #define LV_USE_THEME_MONO        1
+#define LV_USE_THEME_MONO        1
 
 #define LV_THEME_DEFAULT_INCLUDE            <stdint.h>      /*Include a header for the init. function*/
 #define LV_THEME_DEFAULT_INIT               lv_theme_material_init
-#define LV_THEME_DEFAULT_COLOR_PRIMARY      LV_COLOR_RED
-#define LV_THEME_DEFAULT_COLOR_SECONDARY    LV_COLOR_BLUE
+#define LV_THEME_DEFAULT_COLOR_PRIMARY      lv_color_hex(0x01a2b1)
+#define LV_THEME_DEFAULT_COLOR_SECONDARY    lv_color_hex(0x44d1b6)
 #define LV_THEME_DEFAULT_FLAG               LV_THEME_MATERIAL_FLAG_LIGHT
-#define LV_THEME_DEFAULT_FONT_SMALL         &lv_font_montserrat_16
-#define LV_THEME_DEFAULT_FONT_NORMAL        &lv_font_montserrat_16
-#define LV_THEME_DEFAULT_FONT_SUBTITLE      &lv_font_montserrat_16
-#define LV_THEME_DEFAULT_FONT_TITLE         &lv_font_montserrat_16
+#define LV_THEME_DEFAULT_FONT_SMALL         &lv_font_montserrat_14
+#define LV_THEME_DEFAULT_FONT_NORMAL        &lv_font_montserrat_14
+#define LV_THEME_DEFAULT_FONT_SUBTITLE      &lv_font_montserrat_14
+#define LV_THEME_DEFAULT_FONT_TITLE         &lv_font_montserrat_14
 
 /*=================
  *  Text settings
@@ -453,7 +516,7 @@ typedef void * lv_font_user_data_t;
 
 /* Support bidirectional texts.
  * Allows mixing Left-to-Right and Right-to-Left texts.
- * The direction will be processed according to the Unicode Bidirectioanl Algorithm:
+ * The direction will be processed according to the Unicode Bidirectional Algorithm:
  * https://www.w3.org/International/articles/inline-bidi-markup/uba-basics*/
 #define LV_USE_BIDI     0
 #if LV_USE_BIDI
@@ -475,6 +538,8 @@ typedef void * lv_font_user_data_t;
 #  define LV_SPRINTF_INCLUDE <stdio.h>
 #  define lv_snprintf     snprintf
 #  define lv_vsnprintf    vsnprintf
+#else   /*!LV_SPRINTF_CUSTOM*/
+#  define LV_SPRINTF_DISABLE_FLOAT 1
 #endif  /*LV_SPRINTF_CUSTOM*/
 
 /*===================
@@ -493,7 +558,7 @@ typedef void * lv_obj_user_data_t;
 #endif
 #endif
 
-/*1: enable `lv_obj_realaign()` based on `lv_obj_align()` parameters*/
+/*1: enable `lv_obj_realign()` based on `lv_obj_align()` parameters*/
 #define LV_USE_OBJ_REALIGN          1
 
 /* Enable to make the object clickable on a larger area.
@@ -507,7 +572,7 @@ typedef void * lv_obj_user_data_t;
  *  LV OBJ X USAGE
  *================*/
 /*
- * Documentation of the object types: https://docs.littlevgl.com/#Object-types
+ * Documentation of the object types: https://docs.lvgl.com/#Object-types
  */
 
 /*Arc (dependencies: -)*/
@@ -524,6 +589,9 @@ typedef void * lv_obj_user_data_t;
 
 /*Calendar (dependencies: -)*/
 #define LV_USE_CALENDAR 1
+#if LV_USE_CALENDAR
+#  define LV_CALENDAR_WEEK_STARTS_MONDAY    0
+#endif
 
 /*Canvas (dependencies: lv_img)*/
 #define LV_USE_CANVAS   1
@@ -608,11 +676,11 @@ typedef void * lv_obj_user_data_t;
  * 1: Some extra precision
  * 2: Best precision
  */
-#  define LV_LINEMETER_PRECISE    0
+#  define LV_LINEMETER_PRECISE    1
 #endif
 
 /*Mask (dependencies: -)*/
-#define LV_USE_OBJMASK  0
+#define LV_USE_OBJMASK  1
 
 /*Message box (dependencies: lv_rect, lv_btnm, lv_label)*/
 #define LV_USE_MSGBOX     1
@@ -662,6 +730,7 @@ typedef void * lv_obj_user_data_t;
 #define LV_USE_TABLE    1
 #if LV_USE_TABLE
 #  define LV_TABLE_COL_MAX    12
+#  define LV_TABLE_CELL_STYLE_CNT 4
 #endif
 
 /*Tab (dependencies: lv_page, lv_btnm)*/

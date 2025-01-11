@@ -1,6 +1,6 @@
 /**
- * @file lv_task.c
- * An 'lv_task'  is a void (*fp) (void* param) type function which will be called periodically.
+ * @file lv_task.h
+ * An 'lv_task' is a void (*fp) (struct _lv_task_t* param) type function which will be called periodically.
  * A priority (5 levels + disable) can be assigned to lv_tasks.
  */
 
@@ -36,7 +36,7 @@ extern "C" {
 struct _lv_task_t;
 
 /**
- * Tasks execute this type type of functions.
+ * Tasks execute this type of functions.
  */
 typedef void (*lv_task_cb_t)(struct _lv_task_t *);
 
@@ -75,12 +75,12 @@ typedef struct _lv_task_t {
 /**
  * Init the lv_task module
  */
-void lv_task_core_init(void);
+void _lv_task_core_init(void);
 
 //! @cond Doxygen_Suppress
 
 /**
- * Call it  periodically to handle lv_tasks.
+ * Call it periodically to handle lv_tasks.
  * @return time till it needs to be run next (in ms)
  */
 LV_ATTRIBUTE_TASK_HANDLER uint32_t lv_task_handler(void);
@@ -88,9 +88,9 @@ LV_ATTRIBUTE_TASK_HANDLER uint32_t lv_task_handler(void);
 //! @endcond
 
 /**
- * Create an "empty" task. It needs to initialzed with at least
+ * Create an "empty" task. It needs to initialized with at least
  * `lv_task_set_cb` and `lv_task_set_period`
- * @return pointer to the craeted task
+ * @return pointer to the created task
  */
 lv_task_t * lv_task_create_basic(void);
 
@@ -154,7 +154,7 @@ void lv_task_set_repeat_count(lv_task_t * task, int32_t repeat_count);
 void lv_task_reset(lv_task_t * task);
 
 /**
- * Enable or disable the whole  lv_task handling
+ * Enable or disable the whole lv_task handling
  * @param en: true: lv_task handling is running, false: lv_task handling is suspended
  */
 void lv_task_enable(bool en);
@@ -164,6 +164,13 @@ void lv_task_enable(bool en);
  * @return the lv_task idle in percentage
  */
 uint8_t lv_task_get_idle(void);
+
+/**
+ * Iterate through the tasks
+ * @param task NULL to start iteration or the previous return value to get the next task
+ * @return the next task or NULL if there is no more task
+ */
+lv_task_t * lv_task_get_next(lv_task_t * task);
 
 /**********************
  *      MACROS

@@ -5,6 +5,7 @@ add_executable(${EXECUTABLE_NAME}
                                 monitor.c
                                 mouse.c
                                 mouse_cursor_icon.c
+                                masarat_logo.c
                                 )
 
 

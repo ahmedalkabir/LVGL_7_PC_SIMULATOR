@@ -14,9 +14,10 @@ extern "C" {
  *      INCLUDES
  *********************/
 #include <stddef.h>
-#include "lv_bidi.h"
 #include "lv_txt.h"
 #include "../lv_draw/lv_draw.h"
+
+#if LV_USE_ARABIC_PERSIAN_CHARS == 1
 
 /*********************
  *      DEFINES
@@ -43,12 +44,14 @@ typedef struct {
 /**********************
  * GLOBAL PROTOTYPES
  **********************/
-uint32_t lv_txt_ap_calc_bytes_cnt(const char * txt);
-void lv_txt_ap_proc(const char * txt, char * txt_out);
+uint32_t _lv_txt_ap_calc_bytes_cnt(const char * txt);
+void _lv_txt_ap_proc(const char * txt, char * txt_out);
 
 /**********************
  *      MACROS
  **********************/
+
+#endif // LV_USE_ARABIC_PERSIAN_CHARS
 
 #ifdef __cplusplus
 } /* extern "C" */

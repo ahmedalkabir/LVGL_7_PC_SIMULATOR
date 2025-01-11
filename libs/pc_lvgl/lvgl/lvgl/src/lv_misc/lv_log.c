@@ -45,14 +45,13 @@ static lv_log_print_g_cb_t custom_print_cb;
 /**
  * Register custom print/write function to call when a log is added.
  * It can format its "File path", "Line number" and "Description" as required
- * and send the formatted log message to a consol or serial port.
+ * and send the formatted log message to a console or serial port.
  * @param print_cb a function pointer to print a log
  */
 void lv_log_register_print_cb(lv_log_print_g_cb_t print_cb)
 {
     custom_print_cb = print_cb;
 }
-
 
 /**
  * Add a log
@@ -63,7 +62,7 @@ void lv_log_register_print_cb(lv_log_print_g_cb_t print_cb)
  * @param format printf-like format string
  * @param ... parameters for `format`
  */
-void lv_log_add(lv_log_level_t level, const char * file, int line, const char * func, const char * format, ...)
+void _lv_log_add(lv_log_level_t level, const char * file, int line, const char * func, const char * format, ...)
 {
     if(level >= _LV_LOG_LEVEL_NUM) return; /*Invalid level*/
 

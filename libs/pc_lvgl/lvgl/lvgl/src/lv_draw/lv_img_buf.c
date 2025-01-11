@@ -25,7 +25,6 @@
 /**********************
  *  STATIC PROTOTYPES
  **********************/
-static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc);
 
 /**********************
  *  STATIC VARIABLES
@@ -38,7 +37,6 @@ static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc);
 /**********************
  *   GLOBAL FUNCTIONS
  **********************/
-
 
 /**
  * Get the color of an image's pixel
@@ -59,9 +57,9 @@ lv_color_t lv_img_buf_get_px_color(lv_img_dsc_t * dsc, lv_coord_t x, lv_coord_t 
        dsc->header.cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
         uint8_t px_size = lv_img_cf_get_px_size(dsc->header.cf) >> 3;
         uint32_t px     = dsc->header.w * y * px_size + x * px_size;
-        lv_memcpy_small(&p_color, &buf_u8[px], sizeof(lv_color_t));
+        _lv_memcpy_small(&p_color, &buf_u8[px], sizeof(lv_color_t));
 #if LV_COLOR_SIZE == 32
-        p_color.ch.alpha = 0xFF; /*Only the color should be get so use a deafult alpha value*/
+        p_color.ch.alpha = 0xFF; /*Only the color should be get so use a default alpha value*/
 #endif
     }
     else if(dsc->header.cf == LV_IMG_CF_INDEXED_1BIT) {
@@ -246,12 +244,12 @@ void lv_img_buf_set_px_color(lv_img_dsc_t * dsc, lv_coord_t x, lv_coord_t y, lv_
     if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR || dsc->header.cf == LV_IMG_CF_TRUE_COLOR_CHROMA_KEYED) {
         uint8_t px_size = lv_img_cf_get_px_size(dsc->header.cf) >> 3;
         uint32_t px     = dsc->header.w * y * px_size + x * px_size;
-        lv_memcpy_small(&buf_u8[px], &c, px_size);
+        _lv_memcpy_small(&buf_u8[px], &c, px_size);
     }
     else if(dsc->header.cf == LV_IMG_CF_TRUE_COLOR_ALPHA) {
         uint8_t px_size = lv_img_cf_get_px_size(dsc->header.cf) >> 3;
         uint32_t px     = dsc->header.w * y * px_size + x * px_size;
-        lv_memcpy_small(&buf_u8[px], &c, px_size - 1); /*-1 to not overwrite the alpha value*/
+        _lv_memcpy_small(&buf_u8[px], &c, px_size - 1); /*-1 to not overwrite the alpha value*/
     }
     else if(dsc->header.cf == LV_IMG_CF_INDEXED_1BIT) {
         buf_u8 += sizeof(lv_color32_t) * 2; /*Skip the palette*/
@@ -319,7 +317,7 @@ void lv_img_buf_set_palette(lv_img_dsc_t * dsc, uint8_t id, lv_color_t c)
     lv_color32_t c32;
     c32.full      = lv_color_to32(c);
     uint8_t * buf = (uint8_t *)dsc->data;
-    lv_memcpy_small(&buf[id * sizeof(c32)], &c32, sizeof(c32));
+    _lv_memcpy_small(&buf[id * sizeof(c32)], &c32, sizeof(c32));
 }
 
 /**
@@ -336,7 +334,7 @@ lv_img_dsc_t * lv_img_buf_alloc(lv_coord_t w, lv_coord_t h, lv_img_cf_t cf)
     if(dsc == NULL)
         return NULL;
 
-    lv_memset_00(dsc, sizeof(lv_img_dsc_t));
+    _lv_memset_00(dsc, sizeof(lv_img_dsc_t));
 
     /* Get image data size */
     dsc->data_size = lv_img_buf_get_img_size(w, h, cf);
@@ -351,7 +349,7 @@ lv_img_dsc_t * lv_img_buf_alloc(lv_coord_t w, lv_coord_t h, lv_img_cf_t cf)
         lv_mem_free(dsc);
         return NULL;
     }
-    lv_memset_00((uint8_t *)dsc->data, dsc->data_size);
+    _lv_memset_00((uint8_t *)dsc->data, dsc->data_size);
 
     /* Fill in header */
     dsc->header.always_zero = 0;
@@ -412,27 +410,32 @@ uint32_t lv_img_buf_get_img_size(lv_coord_t w, lv_coord_t h, lv_img_cf_t cf)
     }
 }
 
+#if LV_USE_IMG_TRANSFORM
 /**
- * Initialize a descriptor to tranform an image
+ * Initialize a descriptor to transform an image
  * @param dsc pointer to an `lv_img_transform_dsc_t` variable whose `cfg` field is initialized
  */
-void lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc)
+void _lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc)
 {
     dsc->tmp.pivot_x_256 = dsc->cfg.pivot_x * 256;
     dsc->tmp.pivot_y_256 = dsc->cfg.pivot_y * 256;
 
     int32_t angle_low = dsc->cfg.angle / 10;
-    int32_t angle_hight = angle_low + 1;
+    int32_t angle_high = angle_low + 1;
     int32_t angle_rem = dsc->cfg.angle  - (angle_low * 10);
 
-    int32_t s1 = lv_trigo_sin(-angle_low);
-    int32_t s2 = lv_trigo_sin(-angle_hight);
+    int32_t s1 = _lv_trigo_sin(-angle_low);
+    int32_t s2 = _lv_trigo_sin(-angle_high);
 
-    int32_t c1 = lv_trigo_sin(-angle_low + 90);
-    int32_t c2 = lv_trigo_sin(-angle_hight + 90);
+    int32_t c1 = _lv_trigo_sin(-angle_low + 90);
+    int32_t c2 = _lv_trigo_sin(-angle_high + 90);
 
     dsc->tmp.sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
     dsc->tmp.cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
+
+    /*Use smaller value to avoid overflow*/
+    dsc->tmp.sinma = dsc->tmp.sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    dsc->tmp.cosma = dsc->tmp.cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
 
     dsc->tmp.chroma_keyed = lv_img_cf_is_chroma_keyed(dsc->cfg.cf) ? 1 : 0;
     dsc->tmp.has_alpha = lv_img_cf_has_alpha(dsc->cfg.cf) ? 1 : 0;
@@ -450,98 +453,14 @@ void lv_img_buf_transform_init(lv_img_transform_dsc_t * dsc)
     dsc->tmp.img_dsc.header.w = dsc->cfg.src_w;
     dsc->tmp.img_dsc.header.h = dsc->cfg.src_h;
 
-    dsc->tmp.zoom_inv = (256 * 256) / dsc->cfg.zoom;
+    /* The inverse of the zoom will be sued during the transformation
+     *  + dsc->cfg.zoom / 2 for rounding*/
+    dsc->tmp.zoom_inv = (((256 * 256) << _LV_ZOOM_INV_UPSCALE) + dsc->cfg.zoom / 2) / dsc->cfg.zoom;
 
     dsc->res.opa = LV_OPA_COVER;
     dsc->res.color = dsc->cfg.color;
 }
-
-/**
- * Get which color and opa would come to a pixel if it were rotated
- * @param dsc a descriptor initialized by `lv_img_buf_rotate_init`
- * @param x the coordinate which color and opa should be get
- * @param y the coordinate which color and opa should be get
- * @return true: there is valid pixel on these x/y coordinates; false: the rotated pixel was out of the image
- * @note the result is written back to `dsc->res_color` and `dsc->res_opa`
- */
-bool lv_img_buf_transform(lv_img_transform_dsc_t * dsc, lv_coord_t x, lv_coord_t y)
-{
-    const uint8_t * src_u8 = dsc->cfg.src;
-
-    /*Get the target point relative coordinates to the pivot*/
-    int32_t xt = x - dsc->cfg.pivot_x;
-    int32_t yt = y - dsc->cfg.pivot_y;
-
-    int32_t xs;
-    int32_t ys;
-    if(dsc->cfg.zoom == LV_IMG_ZOOM_NONE) {
-        /*Get the source pixel from the upscaled image*/
-        xs = ((dsc->tmp.cosma * xt - dsc->tmp.sinma * yt) >> (LV_TRIGO_SHIFT - 8)) + dsc->tmp.pivot_x_256;
-        ys = ((dsc->tmp.sinma * xt + dsc->tmp.cosma * yt) >> (LV_TRIGO_SHIFT - 8)) + dsc->tmp.pivot_y_256;
-    }
-    else {
-        xt *= dsc->tmp.zoom_inv;
-        yt *= dsc->tmp.zoom_inv;
-        xs = ((dsc->tmp.cosma * xt - dsc->tmp.sinma * yt) >> (LV_TRIGO_SHIFT)) + dsc->tmp.pivot_x_256;
-        ys = ((dsc->tmp.sinma * xt + dsc->tmp.cosma * yt) >> (LV_TRIGO_SHIFT)) + dsc->tmp.pivot_y_256;
-    }
-
-    /*Get the integer part of the source pixel*/
-    int xs_int = xs >> 8;
-    int ys_int = ys >> 8;
-
-    if(xs_int >= dsc->cfg.src_w) return false;
-    else if(xs_int < 0) return false;
-
-    if(ys_int >= dsc->cfg.src_h) return false;
-    else if(ys_int < 0) return false;
-
-    /* If the fractional < 0x70 mix the source pixel with the left/top pixel
-     * If the fractional > 0x90 mix the source pixel with the right/bottom pixel
-     * In the 0x70..0x90 range use the unchanged source pixel */
-
-    uint8_t px_size;
-    uint32_t pxi;
-    if(dsc->tmp.native_color) {
-        if(dsc->tmp.has_alpha == 0) {
-            px_size = LV_COLOR_SIZE >> 3;
-
-            pxi     = dsc->cfg.src_w * ys_int * px_size + xs_int * px_size;
-            lv_memcpy_small(&dsc->res.color, &src_u8[pxi], px_size);
-        }
-        else {
-            px_size = LV_IMG_PX_SIZE_ALPHA_BYTE;
-            pxi     = dsc->cfg.src_w * ys_int * px_size + xs_int * px_size;
-            lv_memcpy_small(&dsc->res.color, &src_u8[pxi], px_size - 1);
-            dsc->res.opa = src_u8[pxi + px_size - 1];
-        }
-    }
-    else {
-        pxi = 0; /*unused*/
-        px_size = 0;    /*unused*/
-        dsc->res.color = lv_img_buf_get_px_color(&dsc->tmp.img_dsc, xs_int, ys_int, dsc->cfg.color);
-        dsc->res.opa = lv_img_buf_get_px_alpha(&dsc->tmp.img_dsc, xs_int, ys_int);
-    }
-
-    if(dsc->tmp.chroma_keyed) {
-        lv_color_t ct = LV_COLOR_TRANSP;
-        if(dsc->res.color.full == ct.full) return false;
-    }
-
-    if(dsc->cfg.antialias == false) return true;
-
-    dsc->tmp.xs = xs;
-    dsc->tmp.ys = ys;
-    dsc->tmp.xs_int = xs_int;
-    dsc->tmp.ys_int = ys_int;
-    dsc->tmp.pxi = pxi;
-    dsc->tmp.px_size = px_size;
-
-    bool ret;
-    ret = transform_anti_alias(dsc);
-
-    return ret;
-}
+#endif
 
 /**
  * Get the area of a rectangle if its rotated and scaled
@@ -552,22 +471,47 @@ bool lv_img_buf_transform(lv_img_transform_dsc_t * dsc, lv_coord_t x, lv_coord_t
  * @param zoom zoom, (256 no zoom)
  * @param pivot x,y pivot coordinates of rotation
  */
-void lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t w, lv_coord_t h, int16_t angle, uint16_t zoom,
-                                     lv_point_t * pivot)
+void _lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t w, lv_coord_t h, int16_t angle, uint16_t zoom,
+                                      const lv_point_t * pivot)
 {
+#if LV_USE_IMG_TRANSFORM
+    if(angle == 0 && zoom == LV_IMG_ZOOM_NONE) {
+        res->x1 = 0;
+        res->y1 = 0;
+        res->x2 = w - 1;
+        res->y2 = h - 1;
+        return;
+    }
+
+    res->x1 = (((-pivot->x) * zoom) >> 8) - 1;
+    res->y1 = (((-pivot->y) * zoom) >> 8) - 1;
+    res->x2 = (((w - pivot->x) * zoom) >> 8) + 2;
+    res->y2 = (((h - pivot->y) * zoom) >> 8) + 2;
+
+    if(angle == 0) {
+        res->x1 += pivot->x;
+        res->y1 += pivot->y;
+        res->x2 += pivot->x;
+        res->y2 += pivot->y;
+        return;
+    }
 
     int32_t angle_low = angle / 10;
-    int32_t angle_hight = angle_low + 1;
+    int32_t angle_high = angle_low + 1;
     int32_t angle_rem = angle  - (angle_low * 10);
 
-    int32_t s1 = lv_trigo_sin(angle_low);
-    int32_t s2 = lv_trigo_sin(angle_hight);
+    int32_t s1 = _lv_trigo_sin(angle_low);
+    int32_t s2 = _lv_trigo_sin(angle_high);
 
-    int32_t c1 = lv_trigo_sin(angle_low + 90);
-    int32_t c2 = lv_trigo_sin(angle_hight + 90);
+    int32_t c1 = _lv_trigo_sin(angle_low + 90);
+    int32_t c2 = _lv_trigo_sin(angle_high + 90);
 
     int32_t sinma = (s1 * (10 - angle_rem) + s2 * angle_rem) / 10;
     int32_t cosma = (c1 * (10 - angle_rem) + c2 * angle_rem) / 10;
+
+    /*Use smaller value to avoid overflow*/
+    sinma = sinma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
+    cosma = cosma >> (LV_TRIGO_SHIFT - _LV_TRANSFORM_TRIGO_SHIFT);
 
     lv_point_t lt;
     lv_point_t rt;
@@ -577,50 +521,54 @@ void lv_img_buf_get_transformed_area(lv_area_t * res, lv_coord_t w, lv_coord_t h
     lv_coord_t xt;
     lv_coord_t yt;
 
-    lv_area_t a;
-    a.x1 = ((-pivot->x) * zoom) >> 8;
-    a.y1 = ((-pivot->y) * zoom) >> 8;
-    a.x2 = ((w - pivot->x) * zoom) >> 8;
-    a.y2 = ((h - pivot->y) * zoom) >> 8;
+    xt = res->x1;
+    yt = res->y1;
+    lt.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
+    lt.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
 
-    xt = a.x1;
-    yt = a.y1;
-    lt.x = ((cosma * xt - sinma * yt) >> LV_TRIGO_SHIFT) + pivot->x;
-    lt.y = ((sinma * xt + cosma * yt) >> LV_TRIGO_SHIFT) + pivot->y;
+    xt = res->x2;
+    yt = res->y1;
+    rt.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
+    rt.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
 
-    xt = a.x2;
-    yt = a.y1;
-    rt.x = ((cosma * xt - sinma * yt) >> LV_TRIGO_SHIFT) + pivot->x;
-    rt.y = ((sinma * xt + cosma * yt) >> LV_TRIGO_SHIFT) + pivot->y;
+    xt = res->x1;
+    yt = res->y2;
+    lb.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
+    lb.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
 
-    xt = a.x1;
-    yt = a.y2;
-    lb.x = ((cosma * xt - sinma * yt) >> LV_TRIGO_SHIFT) + pivot->x;
-    lb.y = ((sinma * xt + cosma * yt) >> LV_TRIGO_SHIFT) + pivot->y;
-
-    xt = a.x2;
-    yt = a.y2;
-    rb.x = ((cosma * xt - sinma * yt) >> LV_TRIGO_SHIFT) + pivot->x;
-    rb.y = ((sinma * xt + cosma * yt) >> LV_TRIGO_SHIFT) + pivot->y;
+    xt = res->x2;
+    yt = res->y2;
+    rb.x = ((cosma * xt - sinma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->x;
+    rb.y = ((sinma * xt + cosma * yt) >> _LV_TRANSFORM_TRIGO_SHIFT) + pivot->y;
 
     res->x1 = LV_MATH_MIN4(lb.x, lt.x, rb.x, rt.x);
     res->x2 = LV_MATH_MAX4(lb.x, lt.x, rb.x, rt.x);
     res->y1 = LV_MATH_MIN4(lb.y, lt.y, rb.y, rt.y);
     res->y2 = LV_MATH_MAX4(lb.y, lt.y, rb.y, rt.y);
-
+#else
+    LV_UNUSED(angle);
+    LV_UNUSED(zoom);
+    LV_UNUSED(pivot);
+    res->x1 = 0;
+    res->y1 = 0;
+    res->x2 = w - 1;
+    res->y2 = h - 1;
+#endif
 }
 
-/**********************
- *   STATIC FUNCTIONS
- **********************/
-static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc)
+#if LV_USE_IMG_TRANSFORM
+/**
+ * Continue transformation by taking the neighbors into account
+ * @param dsc pointer to the transformation descriptor
+ */
+bool _lv_img_buf_transform_anti_alias(lv_img_transform_dsc_t * dsc)
 {
     const uint8_t * src_u8 = dsc->cfg.src;
 
     /*Get the fractional part of the source pixel*/
     int xs_fract = dsc->tmp.xs & 0xff;
     int ys_fract = dsc->tmp.ys & 0xff;
-    int32_t xn;      /*x neightboor*/
+    int32_t xn;      /*x neighbor*/
     lv_opa_t xr; /*x mix ratio*/
 
     if(xs_fract < 0x70) {
@@ -638,7 +586,7 @@ static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc)
         xr = 0xFF;
     }
 
-    int32_t yn;      /*x neightboor*/
+    int32_t yn;      /*x neighbor*/
     lv_opa_t yr; /*x mix ratio*/
 
     if(ys_fract < 0x70) {
@@ -669,10 +617,10 @@ static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc)
     lv_opa_t a11 = 0;
 
     if(dsc->tmp.native_color) {
-        lv_memcpy_small(&c01, &src_u8[dsc->tmp.pxi + dsc->tmp.px_size * xn], sizeof(lv_color_t));
-        lv_memcpy_small(&c10, &src_u8[dsc->tmp.pxi + dsc->cfg.src_w * dsc->tmp.px_size * yn], sizeof(lv_color_t));
-        lv_memcpy_small(&c11, &src_u8[dsc->tmp.pxi + dsc->cfg.src_w * dsc->tmp.px_size * yn + dsc->tmp.px_size * xn],
-                        sizeof(lv_color_t));
+        _lv_memcpy_small(&c01, &src_u8[dsc->tmp.pxi + dsc->tmp.px_size * xn], sizeof(lv_color_t));
+        _lv_memcpy_small(&c10, &src_u8[dsc->tmp.pxi + dsc->cfg.src_w * dsc->tmp.px_size * yn], sizeof(lv_color_t));
+        _lv_memcpy_small(&c11, &src_u8[dsc->tmp.pxi + dsc->cfg.src_w * dsc->tmp.px_size * yn + dsc->tmp.px_size * xn],
+                         sizeof(lv_color_t));
         if(dsc->tmp.has_alpha) {
             a10 = src_u8[dsc->tmp.pxi + dsc->tmp.px_size * xn + dsc->tmp.px_size - 1];
             a01 = src_u8[dsc->tmp.pxi + dsc->cfg.src_w * dsc->tmp.px_size * yn + dsc->tmp.px_size - 1];
@@ -728,3 +676,7 @@ static inline bool transform_anti_alias(lv_img_transform_dsc_t * dsc)
 
     return true;
 }
+#endif
+/**********************
+ *   STATIC FUNCTIONS
+ **********************/
